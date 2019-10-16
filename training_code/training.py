@@ -66,5 +66,5 @@ learn.load('third');
 learn.unfreeze()
 learn.fit_one_cycle(2, slice(1e-3/(2.6**4),1e-3), moms=(0.8,0.7))
 
-# 
+#
 learn.predict("I really loved that movie, it was awesome!")
