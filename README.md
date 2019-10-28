@@ -9,3 +9,9 @@
 * Train the model, fine tune it, and save the fine-tuned encoder.
 * Train another model classifier using the saved encoder and train the model 4 times.
 * Save the model(model.pth) for future use.
+
+#### OCT 27
+* Implemented a predict API and its endpoint.
+
+#### NEXT:
+* Use model instead of simple response.
