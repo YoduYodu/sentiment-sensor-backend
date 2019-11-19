@@ -1,4 +1,9 @@
 ## Log
+### CLI
+```shell script
+python3 manage.py runserver
+```
+
 #### OCT 6
 * Initialize project
 
@@ -13,48 +18,61 @@
 #### OCT 27
 * Implemented a predict API and its endpoint.
 
-#### NOV 2:
-* prediction_request:
+#### NOV 2
+##### /predictions
+* POST /predictions 
+ 
+Request:
+
 ```json
 {
-  "user_id": "user_id_foo",
-  "text": "This is a great movie",
-  "time_date": "23:32:21PM"
+  "user_id": "foo",
+  "text": "foo"
 }
 ```
 
-* prediction_response:
+Response:
+```json
+{
+    "prediction_id": "foo",
+    "user_id": "foo",
+    "text": "foo",
+    "is_positive": true,
+    "time_date": "23:32:34PM",
+    "object": "prediction"
+}
+```
+
+##### /accuracies
+* POST /accuracies  
+
+Request:
+
 ```json
 {
   "prediction_id": "foo",
-  "user_id": "foo",
-  "text": "This is a great movie",
-  "time_date": "23:32:34PM",
-  "prediction": "positive"
+  "is_accurate": "YES/NO"
 }
 ```
 
-* DB 
+Response:
+
 ```json
 {
-  "predictions": {
-    "prediction_1": {
-      "user_id": "foo",
-      "text": "THis is a bad movie",
-      "prediction": "positive",
-      "feedback": "true",
-      "time_date": "23:32:34PM"
-    },
-    "prediction_2": {
-      "user_id": "foo",
-      "text": "This is a bad movie",
-      "prediction": "positive",
-      "feedback": "true",
-      "time_date": "23:32:34PM"
-    } 
-  }
+  "prediction_id": "foo",
+  "is_accurate": "YES/NO",
+  "object": "accuracy"
 }
 ```
+
+#### Nov 16
+* Modify Prediction model
+* Add Accuracy model
+
+#### Nov 18
+* Finish predictions api
+* Connect to MongoDb
 
 #### Next:
 * Implement models using MongoDB engine.
+* Change fastai models path
