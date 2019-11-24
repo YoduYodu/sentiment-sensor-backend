@@ -100,6 +100,7 @@ Response:
 ```json
 {
   "user_id": "foo",
+  "password": "pK3f(dj",
   "prediction_ids": [],
   "object": "user"
 }
@@ -113,8 +114,14 @@ Response:
 * Finish predictions api
 
 #### Nov 21
-* Add users model
 * Connect to MongoDb
 
+#### Nov 22
+* Insert prediction in MongoDb
+
+#### Nov 23
+* Update metadata document
+
 #### Next:
+* Add metadata collection in MongoDB
 * Change fastai models path

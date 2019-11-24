@@ -25,7 +25,7 @@ password = 'rAL7TKvq6G6HD3kG'
 client = MongoClient("mongodb+srv://wenti:{}@cluster0-rj4l5.gcp.mongodb.net/test?retryWrites=true&w=majority&ssl=true"
                      "&ssl_cert_reqs=CERT_NONE".format(password))
 db = client.test
-predictions, users = db.predictions, db.users
+predictions, users, metadata = db.predictions, db.users, db.metadata
 
 
 @csrf_exempt
@@ -45,7 +45,7 @@ def predict(req: HttpRequest):
         return HttpResponseBadRequest('Bad Request', content_type='text/plain')
 
     # Parse request
-    user_id = req.COOKIES.get('user_id');
+    user_id = props.get('user_id');
     text = props.get('text')
 
     # Generate Prediction
@@ -56,8 +56,7 @@ def predict(req: HttpRequest):
     res_json['is_positive'] = True if str(learn.predict(text)[0]) == 'pos' else False
     # Time
     time = datetime.datetime.now()
-    res_json['time_date'] = "{}-{}-{}T{}:{}:{}Z" \
-        .format(time.year, time.month, time.day, time.hour, time.minute, time.second)
+    res_json['time_date'] = time
     res_json['object'] = 'prediction'
 
     # Create prediction document in DB
@@ -70,13 +69,18 @@ def predict(req: HttpRequest):
         "object": "prediction"
     })
 
+    # Update metadata document
+    update_metadata(res_json['is_positive'])
+
     if user_id:
         # Add prediction to users
+        res_json['user_id'] = user_id
         add_prediction_to_user(user_id, res_json['prediction_id'])
 
     res = HttpResponse(json.dumps(res_json), content_type='application/json')
     res["Access-Control-Allow-Origin"] = "*"
-    res['Access-Control-Allow-Methods'] = "'POST', 'OPTIONS']"
+    res['Access-Control-Allow-Methods'] = "'POST', 'OPTIONS','GET']"
+
     return res
 
 
@@ -84,4 +88,15 @@ def add_prediction_to_user(user_id: str, prediction_id: str):
     users.insert_one(
         {'user_id': user_id},
         {'$push': {'prediction_ids': prediction_id}}
+    )
+
+
+def update_metadata(is_positive):
+    metadata.update_one(
+        {'id': 'metadata'},
+        {'$inc': {
+            'total_submission': 1,
+            'total_positive': 1 if is_positive else 0,
+            'total_negative': 0 if is_positive else 1,
+        }}
     )
