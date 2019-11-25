@@ -46,9 +46,9 @@ def do_get_user_cookie(req: HttpRequest):
         'user_id': props['user_id'],
         'password': props['password'],
     })
-    del user['_id']
     if not user:
         return _prepare_res({'user_id': ''})
+    del user['_id']
     return _prepare_res(user)
 
 
@@ -95,13 +95,14 @@ def update_user_metadata(user_id: str, is_positive: bool):
 
 
 def update_user_feedback(user_id: str, is_correct: bool):
-    collection_users.update_one(
-        {'user_id': user_id},
-        {'$inc': {
-            'user_correct': 1 if is_correct else 0,
-            'user_incorrect': 0 if is_correct else 1,
-        }}
-    )
+    if collection_users.find_one({'user_id': user_id}):
+        collection_users.update_one(
+            {'user_id': user_id},
+            {'$inc': {
+                'user_correct': 1 if is_correct else 0,
+                'user_incorrect': 0 if is_correct else 1,
+            }}
+        )
 
 
 def _prepare_res(json_obj: dict):
