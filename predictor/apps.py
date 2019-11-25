@@ -2,11 +2,13 @@ import datetime
 import json
 import uuid
 
-from pymongo import MongoClient
 from django.apps import AppConfig
-from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseBadRequest, HttpRequest
+from django.http import HttpResponse, HttpResponseNotAllowed, HttpRequest
 from django.views.decorators.csrf import csrf_exempt
 from fastai.text import untar_data, load_data, URLs, AWD_LSTM, text_classifier_learner
+from pymongo import MongoClient
+
+from users.apps import add_prediction_id_to_user, update_user_metadata
 
 
 class PredictorConfig(AppConfig):
@@ -30,65 +32,38 @@ predictions, users, metadata = db.predictions, db.users, db.metadata
 
 @csrf_exempt
 def predict(req: HttpRequest):
-    # Validate request
     if req.method == 'OPTIONS':
-        res = HttpResponse()
-        res['Allow'] = "['POST', 'OPTIONS']"
+        return do_options(req)
+
+    elif req.method == 'POST':
+        props = json.loads(req.body.decode('utf-8'))
+
+        user_id = props.get('user_id');
+        text = props.get('text')
+
+        prediction = {
+            'prediction_id': str(uuid.uuid4()),
+            'user_id': user_id,
+            'text': text,
+            'is_positive': True if str(learn.predict(text)[0]) == 'pos' else False,
+            'time_date': str(datetime.datetime.now()),
+            'object': 'prediction'
+        }
+        predictions.insert_one(prediction)
+        del prediction['_id']
+        update_metadata(prediction['is_positive'])
+
+        if user_id:
+            add_prediction_id_to_user(user_id, prediction['prediction_id'])
+            update_user_metadata(user_id, prediction['is_positive'])
+
+        res = HttpResponse(json.dumps(prediction), content_type='application/json')
+        res["Access-Control-Allow-Origin"] = "*"
+        res['Access-Control-Allow-Methods'] = "'POST', 'OPTIONS','GET']"
         return res
 
-    elif req.method != 'POST':
-        return HttpResponseNotAllowed(['POST', 'OPTIONS'])
-
-    # Parse request body
-    props = json.loads(req.body.decode('utf-8'))
-    if len(props) != 1 or 'text' not in props:
-        return HttpResponseBadRequest('Bad Request', content_type='text/plain')
-
-    # Parse request
-    user_id = props.get('user_id');
-    text = props.get('text')
-
-    # Generate Prediction
-    res_json = dict()
-    res_json['prediction_id'] = str(uuid.uuid4())
-    res_json['user_id'] = user_id
-    res_json['text'] = text
-    res_json['is_positive'] = True if str(learn.predict(text)[0]) == 'pos' else False
-    # Time
-    time = datetime.datetime.now()
-    res_json['time_date'] = time
-    res_json['object'] = 'prediction'
-
-    # Create prediction document in DB
-    predictions.insert_one({
-        "prediction_id": res_json['prediction_id'],
-        "user_id": user_id,
-        "text": text,
-        "is_positive": res_json['is_positive'],
-        "time_date": time,
-        "object": "prediction"
-    })
-
-    # Update metadata document
-    update_metadata(res_json['is_positive'])
-
-    if user_id:
-        # Add prediction to users
-        res_json['user_id'] = user_id
-        add_prediction_to_user(user_id, res_json['prediction_id'])
-
-    res = HttpResponse(json.dumps(res_json), content_type='application/json')
-    res["Access-Control-Allow-Origin"] = "*"
-    res['Access-Control-Allow-Methods'] = "'POST', 'OPTIONS','GET']"
-
-    return res
-
-
-def add_prediction_to_user(user_id: str, prediction_id: str):
-    users.insert_one(
-        {'user_id': user_id},
-        {'$push': {'prediction_ids': prediction_id}}
-    )
+    else:
+        return HttpResponseNotAllowed(['GET', 'POST', 'OPTIONS'])
 
 
 def update_metadata(is_positive):
@@ -100,3 +75,9 @@ def update_metadata(is_positive):
             'total_negative': 0 if is_positive else 1,
         }}
     )
+
+
+def do_options(req: HttpRequest):
+    res = HttpResponse()
+    res['Allow'] = "['GET', 'POST', 'OPTIONS']"
+    return res

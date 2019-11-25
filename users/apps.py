@@ -13,28 +13,39 @@ password = 'rAL7TKvq6G6HD3kG'
 client = MongoClient("mongodb+srv://wenti:{}@cluster0-rj4l5.gcp.mongodb.net/test?retryWrites=true&w=majority&ssl=true"
                      "&ssl_cert_reqs=CERT_NONE".format(password))
 db = client.test
-users = db.users
+collection_users = db.users
 
 
 @csrf_exempt
 def users(req: HttpRequest):
     if req.method == 'GET':
-        return do_get(req)
+        if len(req.GET.keys()) == 1:
+            return do_get_user_data(req)
+        elif len(req.GET.keys()) == 2:
+            return do_get_user_cookie(req)
 
     elif req.method == 'POST':
         return do_post_add_new_user(req)
 
 
-def do_get(req: HttpRequest):
-    props = json.loads(req.body.decode('utf-8'))
-    user = users.find_one(
-        {'user_id': props.get('user_id')}
+def do_get_user_data(req: HttpRequest):
+    props = req.GET
+    user = collection_users.find_one(
+        {'user_id': props['user_id']}
     )
     del user['_id']
-    res = HttpResponse(json.dumps(user), content_type='application/json')
-    res["Access-Control-Allow-Origin"] = "*"
-    res['Access-Control-Allow-Methods'] = "'POST', 'OPTIONS', 'GET']"
-    return res
+    return _prepare_res(user)
+
+
+def do_get_user_cookie(req: HttpRequest):
+    props = req.GET
+    user = collection_users.find_one({
+        'user_id': props['user_id'],
+        'password': props['password'],
+    })
+    if not user:
+        return _prepare_res({'user_id': ''})
+    return _prepare_res(user)
 
 
 def do_post_add_new_user(req):
@@ -50,12 +61,19 @@ def do_post_add_new_user(req):
             'total_incorrect': 0
     }
 
-    users.insert_one(new_user)
-    return new_user
+    collection_users.insert_one(new_user)
+    return _prepare_res(new_user)
 
 
-def do_post_update_on_user(user_id, is_positive):
-    users.update_one(
+def add_prediction_id_to_user(user_id: str, prediction_id: str):
+    collection_users.insert_one(
+        {'user_id': user_id},
+        {'$push': {'prediction_ids': prediction_id}}
+    )
+
+
+def update_user_metadata(user_id: str, is_positive: bool):
+    collection_users.update_one(
         {'user_id': user_id},
         {'$inc': {
             'user_submission': 1,
@@ -63,3 +81,10 @@ def do_post_update_on_user(user_id, is_positive):
             'user_negative': 0 if is_positive else 1,
         }}
     )
+
+
+def _prepare_res(json_obj: dict):
+    res = HttpResponse(json.dumps(json_obj), content_type='application/json')
+    res["Access-Control-Allow-Origin"] = "*"
+    res['Access-Control-Allow-Methods'] = "'POST', 'OPTIONS', 'GET']"
+    return res

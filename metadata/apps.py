@@ -12,19 +12,18 @@ class MetadataConfig(AppConfig):
 password = 'rAL7TKvq6G6HD3kG'
 client = MongoClient("mongodb+srv://wenti:{}@cluster0-rj4l5.gcp.mongodb.net/test?retryWrites=true&w=majority&ssl=true"
                      "&ssl_cert_reqs=CERT_NONE".format(password))
-db = client.test
-metadata = db.metadata
+collection_metadata = client.test.metadata
 
 
 @csrf_exempt
 def metadata(req: HttpRequest):
-    md = metadata.find_one(
+    md = collection_metadata.find_one(
         {'id': 'metadata'}
     )
     del md['_id']
-    response = HttpResponse(json.dumps(md), content_type='application/json')
-    response["Access-Control-Allow-Origin"] = "*"
-    response['Access-Control-Allow-Methods'] = "'POST', 'OPTIONS', 'GET']"
-    return response
+    res = HttpResponse(json.dumps(md), content_type='application/json')
+    res["Access-Control-Allow-Origin"] = "*"
+    res['Access-Control-Allow-Methods'] = "'POST', 'OPTIONS', 'GET']"
+    return res
 
 
