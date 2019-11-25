@@ -25,7 +25,7 @@ def users(req: HttpRequest):
             return do_get_user_cookie(req)
 
     elif req.method == 'POST':
-        return do_post_add_new_user(req)
+        return do_post_sign_up_user(req)
 
 
 def do_get_user_data(req: HttpRequest):
@@ -48,20 +48,27 @@ def do_get_user_cookie(req: HttpRequest):
     return _prepare_res(user)
 
 
-def do_post_add_new_user(req):
+def do_post_sign_up_user(req):
     props = json.loads(req.body.decode('utf-8'))
+
+    # Check if user existed
+    checked_user = collection_users.find_one({'user_id': props.get('user_id')})
+    if checked_user:
+        return _prepare_res({'user_id': ''})
+
     new_user = {
             'user_id': props.get('user_id'),
             'password': props.get('password'),
             'submissions': [],
-            'total_submission': 0,
-            'total_positive': 0,
-            'total_negative': 0,
-            'total_correct': 0,
-            'total_incorrect': 0
+            'user_submission': 0,
+            'user_positive': 0,
+            'user_negative': 0,
+            'user_correct': 0,
+            'user_incorrect': 0
     }
 
     collection_users.insert_one(new_user)
+    del new_user['_id']
     return _prepare_res(new_user)
 
 
