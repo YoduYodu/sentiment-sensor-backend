@@ -8,7 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from fastai.text import untar_data, load_data, URLs, AWD_LSTM, text_classifier_learner
 from pymongo import MongoClient
 
-from users.apps import add_prediction_id_to_user, update_user_metadata
+from users.apps import add_prediction_id_to_user, update_user_metadata, update_user_feedback
 
 
 class PredictorConfig(AppConfig):
@@ -38,29 +38,33 @@ def predict(req: HttpRequest):
     elif req.method == 'POST':
         props = json.loads(req.body.decode('utf-8'))
 
-        user_id = props.get('user_id');
-        text = props.get('text')
+        if 'feedback' in props:
+            update_metadata_feedback(props['feedback'])
+            update_user_feedback(props['user_id'], props['feedback'])
+        else:
+            user_id = props.get('user_id');
+            text = props.get('text')
 
-        prediction = {
-            'prediction_id': str(uuid.uuid4()),
-            'user_id': user_id,
-            'text': text,
-            'is_positive': True if str(learn.predict(text)[0]) == 'pos' else False,
-            'time_date': str(datetime.datetime.now()),
-            'object': 'prediction'
-        }
-        predictions.insert_one(prediction)
-        del prediction['_id']
-        update_metadata(prediction['is_positive'])
+            prediction = {
+                'prediction_id': str(uuid.uuid4()),
+                'user_id': user_id,
+                'text': text,
+                'is_positive': True if str(learn.predict(text)[0]) == 'pos' else False,
+                'time_date': str(datetime.datetime.now()),
+                'object': 'prediction'
+            }
+            predictions.insert_one(prediction)
+            del prediction['_id']
+            update_metadata(prediction['is_positive'])
 
-        if user_id:
-            add_prediction_id_to_user(user_id, prediction['prediction_id'])
-            update_user_metadata(user_id, prediction['is_positive'])
+            if user_id:
+                add_prediction_id_to_user(user_id, prediction['prediction_id'])
+                update_user_metadata(user_id, prediction['is_positive'])
 
-        res = HttpResponse(json.dumps(prediction), content_type='application/json')
-        res["Access-Control-Allow-Origin"] = "*"
-        res['Access-Control-Allow-Methods'] = "'POST', 'OPTIONS','GET']"
-        return res
+            res = HttpResponse(json.dumps(prediction), content_type='application/json')
+            res["Access-Control-Allow-Origin"] = "*"
+            res['Access-Control-Allow-Methods'] = "'POST', 'OPTIONS','GET']"
+            return res
 
     else:
         return HttpResponseNotAllowed(['GET', 'POST', 'OPTIONS'])
@@ -73,6 +77,16 @@ def update_metadata(is_positive):
             'total_submission': 1,
             'total_positive': 1 if is_positive else 0,
             'total_negative': 0 if is_positive else 1,
+        }}
+    )
+
+
+def update_metadata_feedback(is_correct: bool):
+    metadata.update_one(
+        {'id': 'metadata'},
+        {'$inc': {
+            'total_correct': 1 if is_correct else 0,
+            'total_incorrect': 0 if is_correct else 1,
         }}
     )
 
