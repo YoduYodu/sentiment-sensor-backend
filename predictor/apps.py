@@ -41,8 +41,9 @@ def predict(req: HttpRequest):
         if 'feedback' in props:
             update_metadata_feedback(props['feedback'])
             update_user_feedback(props['user_id'], props['feedback'])
+            return HttpResponse()
         else:
-            user_id = props.get('user_id');
+            user_id = props.get('user_id')
             text = props.get('text')
 
             prediction = {
